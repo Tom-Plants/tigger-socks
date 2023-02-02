@@ -5,8 +5,8 @@ const { recv_handle, mix, gen_packet } = require("./packet_handler");
 const { log } = require("./util");
 
 let tunnel_nums = 8;
-let target_host = "192.168.123.124";
-let target_port = 5000;
+let target_host = "jp1.0x7c00.site";
+let target_port = 443;
 
 /**
  * @var {Array<Socket>} clients
@@ -36,8 +36,6 @@ function create_tunnel(index, ecbs) {
         checkServerIdentity: () => undefined
     }, () => {
 
-        log(`T`, client.localAddress, client.localPort, -1, `tunnel opened`);
-
         //初始化client
         client.removeAllListeners();
 
@@ -46,46 +44,25 @@ function create_tunnel(index, ecbs) {
         client.write(register_packet);
 
 
-        client.on("error", (err) => {
-            log(`T`, client.localAddress, client.localPort, -1, err);
-        });
+        client.on("error", (err) => {});
 
         client._authed = false;
         client._recv_handler = recv_handle(data => {
-            let pkt_num = data.readUInt32LE(0);
             let pkt_type = data.readUInt8(1 + 3);
             let ss_id = data.readUInt16LE(2 + 3);
-            let real_data = data.slice(4 + 3);
-
-
-            log(`T`, client.localAddress, client.localPort, pkt_num, `<<< ${real_data.toString("hex").slice(0, 10)}`);
 
             if(pkt_type == 11) {
                 //通道注册成功
-                log(`T`, client.localAddress, client.localPort, 0, "tunnel register OK");
                 client._authed = true;
 				on_tunnel_drain(ecbs);
-            }else if(pkt_type == 3) {
-                //数据流
-                //log(`T`, client.localAddress, client.localPort, pkt_num, `${ss_id} << ${real_data.toString("hex")}`);
-				ecbs.emit("data", pkt_num, ss_id, real_data);
-            }else if(pkt_type == 1) {
-                //会话创建成功
-            }else if(pkt_type == 2) {
-				ecbs.emit("session_failed", ss_id);
-            }else if(pkt_type == 5) {
-				ecbs.emit("data", pkt_num, ss_id, Buffer.from("HALF"));
-            }else if(pkt_type == 6) {
-                //节流
-				ecbs.emit("data", pkt_num, ss_id, Buffer.from("STOP"));
-            }else if(pkt_type == 7) {
-                //恢复流
-				ecbs.emit("data", pkt_num, ss_id, Buffer.from("CUNT"));
             }else if(pkt_type == 8) {
+				//结束连接回应
                 let finish_ok_packet = gen_packet(0, 9, 0, Buffer.alloc(0));
                 client.write(finish_ok_packet);
                 client._authed = false;
-            }
+			}else {
+				ecbs.emit("data", ss_id, data);
+			}
         });
 
         client.on("data", (data) => {
@@ -160,8 +137,7 @@ function push_data_to_remote(data) {
 
     client.write(data, (err) => {
         if(err) {
-            console.log("失败", data);
-            pending_data.push(data);
+            pending_data.unshift(data);
         }
     });
 

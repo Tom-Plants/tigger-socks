@@ -1,23 +1,26 @@
 const socks = require("socksv5");
 const md5 = require("md5");
 const {gen_packet, pk_handle, st_handle, recv_handle} = require("./packet_handler");
-const {createConnection} = require("net");
+const {createConnection, createServer} = require("net");
 const EventEmitter = require("events");
 const {push_data_to_remote, init_tunnels} = require("./client_tunnel");
 const {Stream} = require("stream");
 
+const local_host = "0.0.0.0";
+const local_port = 3000;
 
 let g_sessions = {};
 let pk_handles = {};
 let tunnel = new EventEmitter;
 let mapper = {};
-let server = socks.createServer((info, accept, deny) => {
 
-	start_proxy(info.dstAddr, info.dstPort, (tcp, ss_id) => {
+let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive: true}, (c) => {
+	start_proxy((tcp, ss_id) => {
 		tcp.on("_connect", () => {
 			tcp.removeAllListeners();
+
+			c.resume();
 			//本地socks5操作
-			let c = accept(true);
 			mapper[c.remoteAddress+c.remotePort] = c;
 			
 
@@ -75,14 +78,15 @@ let server = socks.createServer((info, accept, deny) => {
 
 		tcp.on("_close", (had_error) => {
 			if(had_error) {
-				console.log("remote", info.dstAddr, info.dstPort, " connect failed");
+				console.log("session", ss_id, " connect failed");
 			}
 			deny();
 		});
 	});
+	
 });
 
-server.listen(1080, "0.0.0.0", () => {
+server.listen(local_port, local_host, () => {
 	console.log("server started");
 	init_tunnels(tunnel);
 
@@ -134,7 +138,6 @@ server.listen(1080, "0.0.0.0", () => {
 	});
 });
 
-
 function gen_remote_socket(ss_id) {
 	let a = new EventEmitter;
 	let st = st_handle();
@@ -153,9 +156,9 @@ function gen_remote_socket(ss_id) {
 	a.end = () => {
 		push_data_to_remote(gen_packet(st(), 105, ss_id, Buffer.alloc(0)));
 	}
-	a.connect = (addr, port) => {
+	a.connect = () => {
 		g_sessions[ss_id] = a;
-		push_data_to_remote(gen_packet(st(), 101, ss_id, Buffer.from(addr+","+port)));
+		push_data_to_remote(gen_packet(st(), 101, ss_id, Buffer.alloc(0)));
 	}
 	a.clean = () => {
 		g_sessions[ss_id] = undefined;
@@ -164,21 +167,18 @@ function gen_remote_socket(ss_id) {
 	a.st = st;
 	return a;
 }
-function start_proxy(addr, port, callback) {
+function start_proxy(callback) {
 	let server_ss = Object.keys(g_sessions).length;
 	for(let i in g_sessions) {
 		if(g_sessions[i] == undefined) {
 			server_ss = i;
 		}
 	}
-	let socket = g_sessions[server_ss] = gen_remote_socket(server_ss, addr, port)
-	console.log(`client gen session:`, server_ss, "->", addr, port);
-	socket.connect(addr, port);
+	let socket = g_sessions[server_ss] = gen_remote_socket(server_ss);
+	console.log(`client redirect session:`, server_ss);
+	socket.connect();
 	callback(socket, server_ss);
 }
-
-server.useAuth(socks.auth.None());
-
 
 process.stdin.pipe(
 	new Stream.Writable(
@@ -197,3 +197,4 @@ process.stdin.pipe(
 		}
 	)
 );
+

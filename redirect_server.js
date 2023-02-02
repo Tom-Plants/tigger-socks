@@ -3,6 +3,9 @@ const {EventEmitter} = require("events");
 const {createConnection} = require("net");
 const {gen_packet, st_handle, pk_handle} = require("./packet_handler");
 
+const target_addr = "127.0.0.1";
+const target_port = 3000;
+
 let e = new EventEmitter;
 let pk_handles = {};
 let clients = {};
@@ -20,7 +23,7 @@ e.on("data", (ss_id, data) => {
 				let host = target[0];
 				let port = target[1];
 				console.log("connect to", host, port, "related to", ss_id);
-				create_outbound(host, port, ss_id);
+				create_outbound(target_addr, target_port, ss_id);
 			}else if(pkt_type == 3) {
 				//数据传输
 				if(clients[ss_id] != undefined) {
@@ -111,3 +114,4 @@ e.on("drain", () => {
 		}
 	}
 });
+

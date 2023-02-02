@@ -5,7 +5,7 @@ const { log } = require("./util");
 const { recv_handle, gen_packet } = require("./packet_handler");
 
 let port = 5000;
-let host = "192.168.123.124";
+let host = "0.0.0.0";
 
 let clients = [];
 
@@ -24,11 +24,7 @@ function init_input_tunnels(ecbs) {
             let ss_id = data.readUInt16LE(2 + 3);
             let real_data = data.slice(4 + 3);
 
-
             if(pkt_type == 10) {
-                //通道注册
-                log(`T`, socket.remoteAddress, socket.remotePort, 0, "authing");
-                
                 //发送通道注册成功包
                 let register_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
                 socket.write(register_packet);
@@ -36,31 +32,19 @@ function init_input_tunnels(ecbs) {
                 socket._authed = true;
                 on_tunnel_drain(ecbs);
 
+				//断开连接
                 setTimeout(() => {
                     let finish_packet = gen_packet(0, 8, 0, Buffer.alloc(0));
                     socket.write(finish_packet);
                     socket._authed = false;
                 }, randomInt(10, 20) * 1000);
-            }else if(pkt_type == 3) {
-                //数据流
-				ecbs.emit("data", pkt_num, ss_id, real_data);
-            }else if(pkt_type == 0) {
-                //会话创建
-				ecbs.emit("session_create", ss_id);
-            }else if(pkt_type == 4) {
-                //会话强制关闭
-				ecbs.emit("session_close", ss_id);
-            }else if(pkt_type == 5) {
-				ecbs.emit("data", pkt_num, ss_id, Buffer.from("HALF"));
-            }else if(pkt_type == 6) {
-                //节流
-				ecbs.emit("data", pkt_num, ss_id, Buffer.from("STOP"));
-            }else if(pkt_type == 7) {
-                //恢复流
-				ecbs.emit("data", pkt_num, ss_id, Buffer.from("CUNT"));
             }else if(pkt_type == 9) {
+				//接受到客户端的断开连接请求
                 socket.end();
-            }
+			}else {
+                //数据流
+				ecbs.emit("data", ss_id, data);
+			}
         });
 
         let id = add_client(socket);
@@ -150,7 +134,7 @@ function push_data_to_remote(data) {
 
     client.write(data, (err) => {
         if(err) {
-            pending_data.push(data);
+            pending_data.unshift(data);
         }
     });
 
