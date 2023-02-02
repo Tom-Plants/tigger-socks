@@ -21,18 +21,20 @@ function recive(data, ss) {
 	if(data.toString() == "OK") {
 		console.log("order", ss, "success");
 		ll[ss] = undefined;
+		can_patching_new = true;
 	}
 }
 
 let buf = Buffer.alloc(1);
-buf.writeUInt8(randomInt(100, 250));
+buf.writeUInt8(randomInt(200, 250));
 let count = 0;
 
 async function order() {
 	if(can_patching_new) {
 		console.log("patching order:", count);
 		let pk1 = gen_packet(0, 3, count, buf);
-		can_patching_new = push_data_to_remote(pk1);
+		push_data_to_remote(pk1);
+		can_patching_new = false;
 		count++;
 	}else {
 		console.log("ordering ... waiting ...");
@@ -44,5 +46,4 @@ async function order() {
 order();
 
 e.on("drain", () => {
-	can_patching_new = true;
 });
