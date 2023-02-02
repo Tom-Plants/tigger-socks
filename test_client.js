@@ -25,7 +25,7 @@ function recive(data, ss) {
 }
 
 let buf = Buffer.alloc(1);
-buf.writeUInt8(randomInt(1, 5));
+buf.writeUInt8(randomInt(100, 250));
 let count = 0;
 
 async function order() {
