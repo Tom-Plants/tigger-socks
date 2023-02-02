@@ -5,8 +5,8 @@ const { recv_handle, mix, gen_packet } = require("./packet_handler");
 const { log } = require("./util");
 
 let tunnel_nums = 8;
-let target_host = "jp1.0x7c00.site";
-let target_port = 443;
+let target_host = "192.168.123.124";
+let target_port = 5000;
 
 /**
  * @var {Array<Socket>} clients
@@ -48,24 +48,20 @@ function create_tunnel(index, ecbs) {
 
         client._authed = false;
         client._recv_handler = recv_handle(data => {
-            let pkt_num = data.readUInt32LE(0);
             let pkt_type = data.readUInt8(1 + 3);
             let ss_id = data.readUInt16LE(2 + 3);
-            let real_data = data.slice(4 + 3);
 
             if(pkt_type == 11) {
                 //通道注册成功
                 client._authed = true;
 				on_tunnel_drain(ecbs);
-            }else if(pkt_type == 3) {
-				ecbs.emit("data", pkt_num, ss_id, real_data);
             }else if(pkt_type == 8) {
 				//结束连接回应
                 let finish_ok_packet = gen_packet(0, 9, 0, Buffer.alloc(0));
                 client.write(finish_ok_packet);
                 client._authed = false;
 			}else {
-				ecbs.emit("control", pkt_num, ss_id, real_data);
+				ecbs.emit("data", ss_id, data);
 			}
         });
 

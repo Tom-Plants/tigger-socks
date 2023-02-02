@@ -38,14 +38,12 @@ function init_input_tunnels(ecbs) {
                     socket.write(finish_packet);
                     socket._authed = false;
                 }, randomInt(10, 20) * 1000);
-            }else if(pkt_type == 3) {
-                //数据流
-				ecbs.emit("data", pkt_num, ss_id, real_data);
             }else if(pkt_type == 9) {
 				//接受到客户端的断开连接请求
                 socket.end();
 			}else {
-				ecbs.emit("control", pkt_num, ss_id, real_data);
+                //数据流
+				ecbs.emit("data", ss_id, data);
 			}
         });
 
