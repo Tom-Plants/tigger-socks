@@ -7,8 +7,9 @@ let waiting = false;
 
 init_input_tunnels(e);
 
-e.on("data", async (num, ss, data) => {
-	let kl = data.readUInt8(0);
+e.on("data", async (ss, data) => {
+	let real_data = data.slice(4+3);
+	let kl = real_data.readUInt8(0);
 
 	let k = st_handle();
 	for(let i = 0; i < kl;) {

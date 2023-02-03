@@ -8,13 +8,15 @@ let e = new EventEmitter;
 let can_patching_new = true;
 init_tunnels(e);
 
-e.on("data", (num, ss, data) => {
+e.on("data", (ss, data) => {
 	if(ll[ss] == undefined) {
 		ll[ss] = pk_handle(data => {
-			recive(data, ss) 
+            let real_data = data.slice(4 + 3);
+			recive(real_data, ss) 
 		}, ss);
 	}
-	ll[ss](num, data);
+	let pkt_num = data.readUInt32LE(0);
+	ll[ss](pkt_num, data);
 });
 
 function recive(data, ss) {
