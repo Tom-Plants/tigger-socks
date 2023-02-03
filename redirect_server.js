@@ -37,6 +37,7 @@ e.on("data", (ss_id, data) => {
 				if(clients[ss_id] != undefined && !clients[ss_id].destroyed) {
 					clients[ss_id].destroy();
 				}
+				clients[ss_id]?.resume();
 				pk_handles[ss_id] = undefined;
 				clients[ss_id] = undefined;
 			}else if(pkt_type == 103) {
@@ -85,7 +86,7 @@ function create_outbound(host, port, ss_id) {
 				push_data_to_remote(gen_packet(st(), 203, ss_id, Buffer.alloc(0)));
 			}
 
-			clients[ss_id].resume();
+			clients[ss_id]?.resume();
 			clients[ss_id] = undefined;
 			pk_handles[ss_id] = undefined;
 		});

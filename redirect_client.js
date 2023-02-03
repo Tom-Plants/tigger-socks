@@ -44,7 +44,7 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 					tcp.destroy();
 				}
 				tcp.clean();
-				mapper[c.remoteAddress+c.remotePort].resume();
+				mapper[c.remoteAddress+c.remotePort]?.resume();
 				mapper[c.remoteAddress+c.remotePort] = undefined;
 			});
 			c.on("drain", () => {
@@ -61,7 +61,9 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 				if(had_error) {
 					console.log(`session from remote:`, ss_id, "closed unexcpectlly !");
 				}
+				mapper[c.remoteAddress+c.remotePort]?.resume();
 				if(!c.destroyed) c.destroy();
+				mapper[c.remoteAddress+c.remotePort] = undefined;
 			});
 			tcp.on("_end", () => {
 				c.end();
