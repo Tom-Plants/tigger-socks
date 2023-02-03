@@ -27,11 +27,11 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 			c.on("data", (data) => {
 				if(!tcp.write(data)) {
 					//所有暂停
-					for(let i in mapper) {
-						if(mapper[i] != undefined) {
-							mapper[i].pause();
-						}
-					}
+					//for(let i in mapper) {
+						//if(mapper[i] != undefined) {
+							//mapper[i].pause();
+						//}
+					//}
 				}
 			});
 			c.on("end", () => {
@@ -88,11 +88,11 @@ server.listen(local_port, local_host, () => {
 	init_tunnels(tunnel);
 
 	tunnel.on("drain", () => {
-		for(let i in mapper) {
-			if(mapper[i] != undefined) {
-				mapper[i].resume();
-			}
-		}
+		//for(let i in mapper) {
+			//if(mapper[i] != undefined) {
+				//mapper[i].resume();
+			//}
+		//}
 	});
 
 	tunnel.on("data", (ss_id, data) => {
@@ -112,6 +112,9 @@ server.listen(local_port, local_host, () => {
 					pk_handles[ss_id] = undefined;
 				}else if(pkt_type == 3) {
 					//数据流
+					if(g_sessions[ss_id] == undefined) {
+						console.log("debuging data", ss_id);
+					}
 					g_sessions[ss_id].emit("_data", real_data);
 				}else if(pkt_type == 203) {
 					//远程会话关闭
