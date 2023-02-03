@@ -5,7 +5,7 @@ const { log } = require("./util");
 const { recv_handle, gen_packet } = require("./packet_handler");
 
 let port = 5000;
-let host = "192.168.123.124";
+let host = "0.0.0.0";
 
 let clients = [];
 

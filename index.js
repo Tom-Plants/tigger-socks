@@ -12,14 +12,10 @@ let pk_handles = {};
 let tunnel = new EventEmitter;
 let mapper = {};
 let server = socks.createServer((info, accept, deny) => {
-	console.log("client", info.srcAddr, info.srcPort, "want connect to", info.dstAddr, info.dstPort);
 
-	start_proxy(info.dstAddr, info.dstPort, (tcp) => {
+	start_proxy(info.dstAddr, info.dstPort, (tcp, ss_id) => {
 		tcp.on("_connect", () => {
-			console.log("remote connected to", info.dstAddr, ":", info.dstPort);
-
 			tcp.removeAllListeners();
-
 			//本地socks5操作
 			let c = accept(true);
 			mapper[c.remotePort] = c;
@@ -41,9 +37,10 @@ let server = socks.createServer((info, accept, deny) => {
 			c.on("error", () => {})
 			c.on("close", (had_error) => {
 				if(had_error) {
-					console.log("local", info.dstAddr, ":", info.dstPort, "closed unexcpectlly !");
+					console.log(`session:`, ss_id, "closed unexcpectlly !");
+					tcp.destroy();
 				}
-				tcp.destroy();
+				tcp.clean();
 				mapper[c.remotePort] = undefined;
 			});
 			c.on("drain", () => {
@@ -58,7 +55,7 @@ let server = socks.createServer((info, accept, deny) => {
 			});
 			tcp.on("_close", (had_error) => {
 				if(had_error) {
-					console.log("remote", info.dstAddr, ":", info.dstPort, "closed unexcpectlly !");
+					console.log(`session from remote:`, ss_id, "closed unexcpectlly !");
 				}
 				if(!c.destroyed) c.destroy();
 			});
@@ -102,6 +99,7 @@ server.listen(1080, "0.0.0.0", () => {
 
 				if(pkt_type == 202) {
 					//创建会话成功
+					console.log(`session:`, ss_id, "connected");
 					g_sessions[ss_id].emit("_connect");
 				}else if(pkt_type == 201) {
 					//创建会话失败
@@ -114,9 +112,10 @@ server.listen(1080, "0.0.0.0", () => {
 				}else if(pkt_type == 203) {
 					//远程会话关闭
 					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_close", false);
-						push_data_to_remote(gen_packet(g_sessions[ss_id].st(), 102, ss_id, Buffer.alloc(0)));
+						g_sessions[ss_id].emit("_close", true);
 					}
+					g_sessions[ss_id] = undefined;
+					pk_handles[ss_id] = undefined;
 				}else if(pkt_type == 204) {
 					//远程暂停
 					g_sessions[ss_id]?.emit("_pause");
@@ -126,11 +125,6 @@ server.listen(1080, "0.0.0.0", () => {
 				}else if(pkt_type == 206) {
 					//远程半关
 					g_sessions[ss_id]?.emit("_end");
-				}else if(pkt_type == 207) {
-					//远程关闭已响应
-					console.log(ss_id, "closed");
-					g_sessions[ss_id] = undefined;
-					pk_handles[ss_id] = undefined;
 				}
 			}, ss_id);
 		}
@@ -162,6 +156,10 @@ function gen_remote_socket(ss_id) {
 		g_sessions[ss_id] = a;
 		push_data_to_remote(gen_packet(st(), 101, ss_id, Buffer.from(addr+","+port)));
 	}
+	a.clean = () => {
+		g_sessions[ss_id] = undefined;
+		pk_handles[ss_id] = undefined;
+	}
 	a.st = st;
 	return a;
 }
@@ -173,8 +171,9 @@ function start_proxy(addr, port, callback) {
 		}
 	}
 	let socket = g_sessions[server_ss] = gen_remote_socket(server_ss, addr, port)
+	console.log(`client gen session:`, server_ss, "->", addr, port);
 	socket.connect(addr, port);
-	callback(socket);
+	callback(socket, server_ss);
 }
 
 server.useAuth(socks.auth.None());

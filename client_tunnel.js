@@ -5,7 +5,7 @@ const { recv_handle, mix, gen_packet } = require("./packet_handler");
 const { log } = require("./util");
 
 let tunnel_nums = 8;
-let target_host = "192.168.123.124";
+let target_host = "127.0.0.1";
 let target_port = 5000;
 
 /**

@@ -30,14 +30,10 @@ e.on("data", (ss_id, data) => {
 				}
 			}else if(pkt_type == 102) {
 				//销毁会话
-				console.log(ss_id, "closed");
+				console.log("session from client: ", ss_id, "closed unexcpectlly");
 				if(clients[ss_id] != undefined && !clients[ss_id].destroyed) {
 					clients[ss_id].destroy();
 				}
-				if(clients[ss_id] != undefined) {
-					push_data_to_remote(gen_packet(clients[ss_id].st(), 207, ss_id, Buffer.alloc(0)));
-				}
-				//响应销毁
 				pk_handles[ss_id] = undefined;
 				clients[ss_id] = undefined;
 			}else if(pkt_type == 103) {
@@ -63,7 +59,7 @@ function create_outbound(host, port, ss_id) {
 	s.on("connect", () => {
 		s.removeAllListeners();
 
-		console.log(host, port, "connected");
+		console.log("session:", ss_id, "connected");
 
 		clients[ss_id] = s;
 		clients[ss_id].st = st;
@@ -79,8 +75,15 @@ function create_outbound(host, port, ss_id) {
 			}
 		});
 		s.on("error", () => { });
-		s.on("close", () => {
-			push_data_to_remote(gen_packet(st(), 203, ss_id, Buffer.alloc(0)));
+		s.on("close", (had_error) => {
+			if(had_error) {
+				//有错误的情况下，另一端不清楚链接是否已经关闭
+				console.log("session:", ss_id, "closed unexcpectlly");
+				push_data_to_remote(gen_packet(st(), 203, ss_id, Buffer.alloc(0)));
+			}
+
+			clients[ss_id] = undefined;
+			pk_handles[ss_id] = undefined;
 		});
 		s.on("drain", () => {
 			push_data_to_remote(gen_packet(st(), 205, ss_id, Buffer.alloc(0)));
@@ -91,7 +94,7 @@ function create_outbound(host, port, ss_id) {
 
 	});
 	s.on("error", () => {
-		console.log(host, port, "connect failed");
+		console.log("session:", ss_id, "connect failed");
 		push_data_to_remote(gen_packet(st(), 201, ss_id, Buffer.alloc(0)));
 		pk_handles[ss_id] = undefined;
 	});
