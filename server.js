@@ -42,9 +42,10 @@ e.on("data", (ss_id, data) => {
 				clients[ss_id] = undefined;
 			}else if(pkt_type == 103) {
 				//暂停
-				clients[ss_id].pause();
+				//有可能在客户端写出数据时，服务端连接已经关闭
+				clients[ss_id]?.pause();
 			}else if(pkt_type == 104) {
-				clients[ss_id].resume();
+				clients[ss_id]?.resume();
 			}else if(pkt_type == 105) {
 				clients[ss_id].end();
 			}else if(pkt_type == 106) {
