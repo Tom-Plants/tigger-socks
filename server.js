@@ -31,9 +31,13 @@ e.on("data", (ss_id, data) => {
 			}else if(pkt_type == 102) {
 				//销毁会话
 				console.log(ss_id, "closed");
-				if(!clients[ss_id].destroyed) {
+				if(clients[ss_id] != undefined && !clients[ss_id].destroyed) {
 					clients[ss_id].destroy();
 				}
+				if(clients[ss_id] != undefined) {
+					push_data_to_remote(gen_packet(clients[ss_id].st(), 207, ss_id, Buffer.alloc(0)));
+				}
+				//响应销毁
 				pk_handles[ss_id] = undefined;
 				clients[ss_id] = undefined;
 			}else if(pkt_type == 103) {
@@ -43,6 +47,8 @@ e.on("data", (ss_id, data) => {
 				clients[ss_id].resume();
 			}else if(pkt_type == 105) {
 				clients[ss_id].end();
+			}else if(pkt_type == 106) {
+
 			}
 		}, ss_id);
 	}
@@ -77,7 +83,10 @@ function create_outbound(host, port, ss_id) {
 		});
 		s.on("drain", () => {
 			push_data_to_remote(gen_packet(st(), 205, ss_id, Buffer.alloc(0)));
-		})
+		});
+		s.on("end", () => {
+			push_data_to_remote(gen_packet(st(), 206, ss_id, Buffer.alloc(0)));
+		});
 
 	});
 	s.on("error", () => {

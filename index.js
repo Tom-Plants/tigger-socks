@@ -4,6 +4,7 @@ const {gen_packet, pk_handle, st_handle, recv_handle} = require("./packet_handle
 const {createConnection} = require("net");
 const EventEmitter = require("events");
 const {push_data_to_remote, init_tunnels} = require("./client_tunnel");
+const {Stream} = require("stream");
 
 
 let g_sessions = {};
@@ -110,6 +111,7 @@ server.listen(1080, "127.0.0.1", () => {
 						g_sessions[ss_id].emit("_close", true);
 					}
 					g_sessions[ss_id] = undefined;
+					pk_handles[ss_id] = undefined;
 				}else if(pkt_type == 3) {
 					//数据流
 					if(g_sessions[ss_id] != undefined) {
@@ -119,20 +121,29 @@ server.listen(1080, "127.0.0.1", () => {
 					//远程会话关闭
 					if(g_sessions[ss_id] != undefined) {
 						g_sessions[ss_id].emit("_close", false);
+						push_data_to_remote(gen_packet(g_sessions[ss_id].st(), 102, ss_id, Buffer.alloc(0)));
 					}
-					g_sessions[ss_id] = undefined;
 				}else if(pkt_type == 204) {
 					//远程暂停
 					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_pause", false);
+						g_sessions[ss_id].emit("_pause");
 					}
 				}else if(pkt_type == 205) {
 					//远程恢复
 					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_drain", false);
+						g_sessions[ss_id].emit("_drain");
 					}
+				}else if(pkt_type == 206) {
+					//远程半关
+					if(g_sessions[ss_id] != undefined) {
+						g_sessions[ss_id].emit("_end");
+					}
+				}else if(pkt_type == 207) {
+					//远程关闭已响应
+					console.log(ss_id, "closed");
+					g_sessions[ss_id] = undefined;
+					pk_handles[ss_id] = undefined;
 				}
-
 			}, ss_id);
 		}
 		let pkt_num = data.readUInt32LE(0);
@@ -155,7 +166,6 @@ function gen_remote_socket(ss_id) {
 	}
 	a.destroy = () => {
 		push_data_to_remote(gen_packet(st(), 102, ss_id, Buffer.alloc(0)));
-		g_sessions[ss_id] = undefined;
 	}
 	a.end = () => {
 		push_data_to_remote(gen_packet(st(), 105, ss_id, Buffer.alloc(0)));
@@ -164,14 +174,38 @@ function gen_remote_socket(ss_id) {
 		g_sessions[ss_id] = a;
 		push_data_to_remote(gen_packet(st(), 101, ss_id, Buffer.from(addr+","+port)));
 	}
+	a.st = st;
 	return a;
 }
 function start_proxy(addr, port, callback) {
-	let e = new EventEmitter;
 	let server_ss = Object.keys(g_sessions).length;
+	for(let i in g_sessions) {
+		if(g_sessions[i] == undefined) {
+			server_ss = i;
+		}
+	}
 	let socket = g_sessions[server_ss] = gen_remote_socket(server_ss, addr, port)
 	socket.connect(addr, port);
 	callback(socket);
 }
 
 server.useAuth(socks.auth.None());
+
+
+process.stdin.pipe(
+	new Stream.Writable(
+		{
+			write: (chunk, encoding, callback) => {
+				let cmd = chunk.toString();
+				if(cmd == "check\r\n") {
+					for(let i in g_sessions) {
+						if(g_sessions[i] != undefined) {
+							console.log(i, g_sessions[i]);
+						}
+					}
+				}
+				callback(null);
+			}
+		}
+	)
+);
