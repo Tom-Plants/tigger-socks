@@ -18,7 +18,7 @@ let server = socks.createServer((info, accept, deny) => {
 			tcp.removeAllListeners();
 			//本地socks5操作
 			let c = accept(true);
-			mapper[c.remotePort] = c;
+			mapper[c.remoteAddress+c.remotePort] = c;
 			
 
 			c.on("data", (data) => {
@@ -41,7 +41,7 @@ let server = socks.createServer((info, accept, deny) => {
 					tcp.destroy();
 				}
 				tcp.clean();
-				mapper[c.remotePort] = undefined;
+				mapper[c.remoteAddress+c.remotePort] = undefined;
 			});
 			c.on("drain", () => {
 				tcp.resume();

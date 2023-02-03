@@ -15,13 +15,13 @@ let tunnel = new EventEmitter;
 let mapper = {};
 
 let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive: true}, (c) => {
-	start_proxy(info.dstAddr, info.dstPort, (tcp, ss_id) => {
+	start_proxy((tcp, ss_id) => {
 		tcp.on("_connect", () => {
 			tcp.removeAllListeners();
 
 			c.resume();
 			//本地socks5操作
-			mapper[c.remotePort] = c;
+			mapper[c.remoteAddress+c.remotePort] = c;
 			
 
 			c.on("data", (data) => {
@@ -44,7 +44,7 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 					tcp.destroy();
 				}
 				tcp.clean();
-				mapper[c.remotePort] = undefined;
+				mapper[c.remoteAddress+c.remotePort] = undefined;
 			});
 			c.on("drain", () => {
 				tcp.resume();
@@ -75,7 +75,7 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 
 		tcp.on("_close", (had_error) => {
 			if(had_error) {
-				console.log("remote", info.dstAddr, info.dstPort, " connect failed");
+				console.log("session", ss_id, " connect failed");
 			}
 			deny();
 		});
@@ -155,9 +155,9 @@ function gen_remote_socket(ss_id) {
 	a.end = () => {
 		push_data_to_remote(gen_packet(st(), 105, ss_id, Buffer.alloc(0)));
 	}
-	a.connect = (addr, port) => {
+	a.connect = () => {
 		g_sessions[ss_id] = a;
-		push_data_to_remote(gen_packet(st(), 101, ss_id, Buffer.from(addr+","+port)));
+		push_data_to_remote(gen_packet(st(), 101, ss_id, Buffer.alloc(0)));
 	}
 	a.clean = () => {
 		g_sessions[ss_id] = undefined;
@@ -166,16 +166,16 @@ function gen_remote_socket(ss_id) {
 	a.st = st;
 	return a;
 }
-function start_proxy(addr, port, callback) {
+function start_proxy(callback) {
 	let server_ss = Object.keys(g_sessions).length;
 	for(let i in g_sessions) {
 		if(g_sessions[i] == undefined) {
 			server_ss = i;
 		}
 	}
-	let socket = g_sessions[server_ss] = gen_remote_socket(server_ss, addr, port)
-	console.log(`client gen session:`, server_ss, "->", addr, port);
-	socket.connect(addr, port);
+	let socket = g_sessions[server_ss] = gen_remote_socket(server_ss);
+	console.log(`client redirect session:`, server_ss);
+	socket.connect();
 	callback(socket, server_ss);
 }
 
