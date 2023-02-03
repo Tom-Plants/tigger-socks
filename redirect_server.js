@@ -72,7 +72,7 @@ function create_outbound(host, port, ss_id) {
 			if(!push_data_to_remote(gen_packet(st(), 3, ss_id, data))) {
 				for(let i in clients) {
 					if(clients[i] != undefined) {
-						clients[i].pause();
+						//clients[i].pause();
 					}
 				}
 			}
@@ -108,7 +108,7 @@ function create_outbound(host, port, ss_id) {
 e.on("drain", () => {
 	for(let i in clients) {
 		if(clients[i] != undefined) {
-			clients[i].pause();
+			//clients[i].pause();
 		}
 	}
 });
