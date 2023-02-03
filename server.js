@@ -47,7 +47,7 @@ e.on("data", (ss_id, data) => {
 			}else if(pkt_type == 104) {
 				clients[ss_id]?.resume();
 			}else if(pkt_type == 105) {
-				clients[ss_id].end();
+				clients[ss_id]?.end();
 			}else if(pkt_type == 106) {
 
 			}
