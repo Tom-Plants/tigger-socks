@@ -82,7 +82,7 @@ let server = socks.createServer((info, accept, deny) => {
 	});
 });
 
-server.listen(1080, "127.0.0.1", () => {
+server.listen(1080, "0.0.0.0", () => {
 	console.log("server started");
 	init_tunnels(tunnel);
 
@@ -102,21 +102,15 @@ server.listen(1080, "127.0.0.1", () => {
 
 				if(pkt_type == 202) {
 					//创建会话成功
-					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_connect");
-					}
+					g_sessions[ss_id].emit("_connect");
 				}else if(pkt_type == 201) {
 					//创建会话失败
-					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_close", true);
-					}
+					g_sessions[ss_id].emit("_close", true);
 					g_sessions[ss_id] = undefined;
 					pk_handles[ss_id] = undefined;
 				}else if(pkt_type == 3) {
 					//数据流
-					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_data", real_data);
-					}
+					g_sessions[ss_id].emit("_data", real_data);
 				}else if(pkt_type == 203) {
 					//远程会话关闭
 					if(g_sessions[ss_id] != undefined) {
@@ -125,19 +119,13 @@ server.listen(1080, "127.0.0.1", () => {
 					}
 				}else if(pkt_type == 204) {
 					//远程暂停
-					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_pause");
-					}
+					g_sessions[ss_id]?.emit("_pause");
 				}else if(pkt_type == 205) {
 					//远程恢复
-					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_drain");
-					}
+					g_sessions[ss_id]?.emit("_drain");
 				}else if(pkt_type == 206) {
 					//远程半关
-					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_end");
-					}
+					g_sessions[ss_id]?.emit("_end");
 				}else if(pkt_type == 207) {
 					//远程关闭已响应
 					console.log(ss_id, "closed");
