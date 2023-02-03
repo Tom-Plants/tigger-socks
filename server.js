@@ -67,11 +67,11 @@ function create_outbound(host, port, ss_id) {
 
 		s.on("data", (data) => {
 			if(!push_data_to_remote(gen_packet(st(), 3, ss_id, data))) {
-				//for(let i in clients) {
-					//if(clients[i] != undefined) {
-						//clients[i].pause();
-					//}
-				//}
+				for(let i in clients) {
+					if(clients[i] != undefined) {
+						clients[i].pause();
+					}
+				}
 			}
 		});
 		s.on("error", () => { });
@@ -82,6 +82,7 @@ function create_outbound(host, port, ss_id) {
 				push_data_to_remote(gen_packet(st(), 203, ss_id, Buffer.alloc(0)));
 			}
 
+			clients[ss_id].resume();
 			clients[ss_id] = undefined;
 			pk_handles[ss_id] = undefined;
 		});
@@ -103,9 +104,9 @@ function create_outbound(host, port, ss_id) {
 
 //从服务器流向客户端的链接drain
 e.on("drain", () => {
-	//for(let i in clients) {
-		//if(clients[i] != undefined) {
-			//clients[i].pause();
-		//}
-	//}
+	for(let i in clients) {
+		if(clients[i] != undefined) {
+			clients[i].resume();
+		}
+	}
 });

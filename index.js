@@ -24,11 +24,11 @@ let server = socks.createServer((info, accept, deny) => {
 			c.on("data", (data) => {
 				if(!tcp.write(data)) {
 					//所有暂停
-					//for(let i in mapper) {
-						//if(mapper[i] != undefined) {
-							//mapper[i].pause();
-						//}
-					//}
+					for(let i in mapper) {
+						if(mapper[i] != undefined) {
+							mapper[i].pause();
+						}
+					}
 				}
 			});
 			c.on("end", () => {
@@ -41,6 +41,7 @@ let server = socks.createServer((info, accept, deny) => {
 					tcp.destroy();
 				}
 				tcp.clean();
+				mapper[c.remoteAddress+c.remotePort].resume();
 				mapper[c.remoteAddress+c.remotePort] = undefined;
 			});
 			c.on("drain", () => {
@@ -86,7 +87,7 @@ server.listen(1080, "0.0.0.0", () => {
 	tunnel.on("drain", () => {
 		for(let i in mapper) {
 			if(mapper[i] != undefined) {
-				//mapper[i].resume();
+				mapper[i].resume();
 			}
 		}
 	});
