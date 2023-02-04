@@ -111,12 +111,10 @@ server.listen(1080, "0.0.0.0", () => {
 					pk_handles[ss_id] = undefined;
 				}else if(pkt_type == 3) {
 					//数据流
-					g_sessions[ss_id].emit("_data", real_data);
+					g_sessions[ss_id]?.emit("_data", real_data);
 				}else if(pkt_type == 203) {
 					//远程会话关闭
-					if(g_sessions[ss_id] != undefined) {
-						g_sessions[ss_id].emit("_close", true);
-					}
+					g_sessions[ss_id]?.emit("_close", true);
 					g_sessions[ss_id] = undefined;
 					pk_handles[ss_id] = undefined;
 				}else if(pkt_type == 204) {
