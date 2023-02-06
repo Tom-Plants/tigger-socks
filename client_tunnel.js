@@ -33,7 +33,8 @@ function create_tunnel(index, ecbs) {
         host: target_host,
         port: target_port,
         ca: [readFileSync("selfsigned-certificate.crt")],
-        checkServerIdentity: () => undefined
+        checkServerIdentity: () => undefined,
+        allowHalfOpen: true
     }, () => {
 
         //初始化client
@@ -74,6 +75,17 @@ function create_tunnel(index, ecbs) {
             clients[index] = undefined;
         }).on("drain", () => {
             on_tunnel_drain(ecbs);
+        }).on("end", () => {
+            if(client._authed == true) {
+                console.log("警告，受到旁路FIN包攻击，联系服务器断开连接");
+                let finish_ok_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
+                client.write(finish_ok_packet);
+                client._authed = false;
+                client.end();
+                client.destroy();
+            }else {
+                client.end();
+            }
         });
 
     });

@@ -41,7 +41,12 @@ function init_input_tunnels(ecbs) {
             }else if(pkt_type == 9) {
 				//接受到客户端的断开连接请求
                 socket.end();
-			}else {
+			}else if(pkt_type == 11) {
+                //接收到客户端被攻击紧急要求撤销链接请求
+                console.log("收到来自客户端的紧急撤销");
+                socket._authed = false;
+                socket.destroy();
+            }else {
                 //数据流
 				ecbs.emit("data", ss_id, data);
 			}
