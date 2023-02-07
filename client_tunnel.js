@@ -92,7 +92,7 @@ function create_tunnel(ecbs) {
 						}else {
 							client.end();
 						}
-					});
+					}).on('error', () => { });
 
 					resolve({id: ss_id, client});
 				}else if(pkt_type == 8) {
