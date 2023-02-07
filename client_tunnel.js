@@ -124,8 +124,8 @@ function create_tunnel(ecbs) {
 
 function get_drain_client() {
     let can_client = [];
-    for(let j in clients) {
-        let i = clients[j];
+    for(let j in clients_map) {
+        let i = clients_map[j];
 
         if(i == undefined) continue;
         if(i.writableNeedDrain) continue;

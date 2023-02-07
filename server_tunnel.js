@@ -35,7 +35,7 @@ function init_input_tunnels(ecbs) {
 				socket.on("data", (data) => {
 					recv_handler(data);
 				}).on("close", () => {
-					clients[i] = undefined;
+					clients[id] = undefined;
 				}).on("data", (data) => {
 					recv_handler(data);
 				}).on("drain", () => {
