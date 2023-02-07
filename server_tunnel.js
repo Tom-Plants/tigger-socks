@@ -17,7 +17,6 @@ function init_input_tunnels(ecbs) {
         key: readFileSync("selfsigned-key.key"),
         cert: readFileSync("selfsigned-certificate.crt")
     }).listen(port, host).on("secureConnection", (socket) => {
-        log(`T`, socket.remoteAddress, socket.remotePort, 0, "connected");
         let recv_handler = recv_handle(data => {
             let pkt_num = data.readUInt32LE(0);
             let pkt_type = data.readUInt8(1 + 3);
@@ -25,9 +24,23 @@ function init_input_tunnels(ecbs) {
             let real_data = data.slice(4 + 3);
 
             if(pkt_type == 10) {
+				//注册这个客户端
+				let id = add_client(socket);
                 //发送通道注册成功包
-                let register_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
+                let register_packet = gen_packet(0, 11, id, Buffer.alloc(0));
                 socket.write(register_packet);
+
+				socket.removeAllListeners();
+
+				socket.on("data", (data) => {
+					recv_handler(data);
+				}).on("close", () => {
+					clients[i] = undefined;
+				}).on("data", (data) => {
+					recv_handler(data);
+				}).on("drain", () => {
+					on_tunnel_drain(ecbs);
+				}).on("error", (err) => {});
 
                 socket._authed = true;
                 on_tunnel_drain(ecbs);
@@ -52,23 +65,13 @@ function init_input_tunnels(ecbs) {
 			}
         });
 
-        let id = add_client(socket);
-
-        socket.on("close", (hadError) => {
-			if(hadError) {
-				console.log("tunnel closed unexpected !")
-			}
-			clients[id] = undefined;
+        socket.on("close", () => {
+			console.log("tunnel closed before auth");
         })
         .on("data", (data) => {
             recv_handler(data);
         })
-        .on("error", (err) => {
-            //console.log(err);
-        })
-        .on("drain", () => {
-            on_tunnel_drain(ecbs);
-        })
+        .on("error", (err) => { })
     });
 }
 

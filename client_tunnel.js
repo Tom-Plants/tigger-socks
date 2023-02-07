@@ -4,98 +4,122 @@ const { connect } = require("tls");
 const { recv_handle, mix, gen_packet } = require("./packet_handler");
 const { log } = require("./util");
 
-let tunnel_nums = 8;
-let target_host = "jp1.0x7c00.site";
+let tunnel_nums = 10;
+let target_host = "us1.0x7c00.site";
 let target_port = 443;
 
 /**
  * @var {Array<Socket>} clients
  */
-let clients = [];
+let clients_map = {};
 
 let pending_data = [];
 let drain_emited = false;
 
 function init_tunnels(ecbs) {
-    for(let i = 0; i < tunnel_nums; i++) { clients.push(undefined); }
+    setInterval(async () => {
+		let need_client = () => {
+			let count = 0;
+			for(let i in clients_map) {
+				if(clients_map[i] != undefined && clients_map[i]._authed == true) {
+					count++;
+				}
+			}
+			if(count >= tunnel_nums) {
+				return false;
+			}
+			return true;
+		}
 
-    setInterval(() => {
-        for(let i in clients) {
-            if(clients[i] != undefined) continue;
-            let client = create_tunnel(i, ecbs);
-            clients[i] = client;
-        }
-    }, 1000);
+		if(need_client()) {
+			try {
+				let {id, client} = await create_tunnel(ecbs);
+				clients_map[id] = client; 
+			}catch(err) {
+				console.log("create_tunnel failed", err);
+			}
+		}
+    }, 100);
 }
 
-function create_tunnel(index, ecbs) {
-    let client = connect({
-        host: target_host,
-        port: target_port,
-        ca: [readFileSync("selfsigned-certificate.crt")],
-        checkServerIdentity: () => undefined,
-        allowHalfOpen: true
-    }, () => {
+function create_tunnel(ecbs) {
+	return new Promise((resolve, reject) => {
+		let client = connect({
+			host: target_host,
+			port: target_port,
+			ca: [readFileSync("selfsigned-certificate.crt")],
+			checkServerIdentity: () => undefined,
+			allowHalfOpen: true
+		}, () => {
 
-        //初始化client
-        client.removeAllListeners();
+			//初始化client
+			client.removeAllListeners();
 
-        //发送通道注册包
-        let register_packet = gen_packet(0, 10, 0, Buffer.alloc(0));
-        client.write(register_packet);
+			//发送通道注册包
+			let register_packet = gen_packet(0, 10, 0, Buffer.alloc(0));
+			client.write(register_packet);
 
 
-        client.on("error", (err) => {});
+			client._authed = false;
+			client._recv_handler = recv_handle(data => {
+				let pkt_type = data.readUInt8(1 + 3);
+				let ss_id = data.readUInt16LE(2 + 3);
 
-        client._authed = false;
-        client._recv_handler = recv_handle(data => {
-            let pkt_type = data.readUInt8(1 + 3);
-            let ss_id = data.readUInt16LE(2 + 3);
+				if(pkt_type == 11) {
+					//通道注册成功,通道注册成功时，ss_id将是多线程通道标识符
+					client._authed = true;
+					on_tunnel_drain(ecbs);
 
-            if(pkt_type == 11) {
-                //通道注册成功
-                client._authed = true;
-				on_tunnel_drain(ecbs);
-            }else if(pkt_type == 8) {
-				//结束连接回应
-                let finish_ok_packet = gen_packet(0, 9, 0, Buffer.alloc(0));
-                client.write(finish_ok_packet);
-                client._authed = false;
-			}else {
-				ecbs.emit("data", ss_id, data);
-			}
-        });
+					client.removeAllListeners();
 
-        client.on("data", (data) => {
-            client._recv_handler(data);
-        }).on("close", (hadError) => {
-            if(hadError) {
-                console.log("connection closed unexcepted !");
-            }
-            clients[index] = undefined;
-        }).on("drain", () => {
-            on_tunnel_drain(ecbs);
-        }).on("end", () => {
-            if(client._authed == true) {
-                console.log("警告，受到旁路FIN包攻击，联系服务器断开连接");
-                let finish_ok_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
-                client.write(finish_ok_packet);
-                client._authed = false;
-                client.end();
-                client.destroy();
-            }else {
-                client.end();
-            }
-        });
+					client.on("close", (hadError) => {
+						if(hadError) {
+							console.log("connection closed unexcepted !");
+						}
+						clients_map[ss_id] = undefined;
+					}).on("data", (data) => {
+						client._recv_handler(data);
+					}).on("drain", () => {
+						on_tunnel_drain(ecbs);
+					}).on("end", () => {
+						if(client._authed == true) {
+							console.log("警告，受到旁路FIN包攻击，联系服务器断开连接");
+							let finish_ok_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
+							client.write(finish_ok_packet);
+							client._authed = false;
+							client.end();
+							client.destroy();
+						}else {
+							client.end();
+						}
+					});
 
-    });
+					resolve({id: ss_id, client});
+				}else if(pkt_type == 8) {
+					//结束连接回应
+					let finish_ok_packet = gen_packet(0, 9, 0, Buffer.alloc(0));
+					client.write(finish_ok_packet);
+					client._authed = false;
+				}else {
+					ecbs.emit("data", ss_id, data);
+				}
+			});
 
-    client.on("error", (err) => {
-        //console.log(err);
-        clients[index] = undefined;
-    });
+			client.on("data", (data) => {
+				client._recv_handler(data);
+			}).on("close", () => {
+				//通道在验证前关闭
+				console.log("tunnel closed before auth");
+			}).on("end", () => {
+				client.end();
+			}).on("error", (err) => {});
 
-    return client;
+		});
+
+		client.on("error", (err) => {
+			reject(err);
+		});
+	});
 }
 
 function get_drain_client() {
