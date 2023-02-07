@@ -26,7 +26,7 @@ function init_input_tunnels(ecbs) {
 
             if(pkt_type == 10) {
                 //发送通道注册成功包
-                let register_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
+                let register_packet = gen_packet(0, 11, ss_id, Buffer.alloc(0));
                 socket.write(register_packet);
 
                 socket._authed = true;

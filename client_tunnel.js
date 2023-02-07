@@ -11,91 +11,102 @@ let target_port = 443;
 /**
  * @var {Array<Socket>} clients
  */
-let clients = [];
+let clients = {};
 
 let pending_data = [];
 let drain_emited = false;
 
-function init_tunnels(ecbs) {
-    for(let i = 0; i < tunnel_nums; i++) { clients.push(undefined); }
+async function init_tunnels(ecbs) {
+	for(let i=0; i< tunnel_nums; i++) {
+		clients[i] = undefined;
+	}
 
-    setInterval(() => {
-        for(let i in clients) {
-            if(clients[i] != undefined) continue;
-            let client = create_tunnel(i, ecbs);
-            clients[i] = client;
-        }
-    }, 1000);
+	let sleep = (sec) => {
+		return new Promise((resolve) => {
+			setTimeout(() => {resolve()}, sec);
+		});
+	}
+
+	while(true) {
+		await sleep(100);
+		for(let i in clients) {
+			if(clients[i] == undefined) {
+				await create_tunnel(ecbs);
+				break;
+			}
+		}
+	}
 }
 
-function create_tunnel(index, ecbs) {
-    let client = connect({
-        host: target_host,
-        port: target_port,
-        ca: [readFileSync("selfsigned-certificate.crt")],
-        checkServerIdentity: () => undefined,
-        allowHalfOpen: true
-    }, () => {
+async function create_tunnel(ecbs) {
+	return new Promise((resolve, reject) => {
+		let client = connect({
+			host: target_host,
+			port: target_port,
+			ca: [readFileSync("selfsigned-certificate.crt")],
+			checkServerIdentity: () => undefined,
+			allowHalfOpen: true
+		}, () => {
 
-        //初始化client
-        client.removeAllListeners();
+			//初始化client
+			client.removeAllListeners();
 
-        //发送通道注册包
-        let register_packet = gen_packet(0, 10, 0, Buffer.alloc(0));
-        client.write(register_packet);
+			//发送通道注册包
+			let register_packet = gen_packet(0, 10, 0, Buffer.alloc(0));
+			client.write(register_packet);
 
+			client._authed = false;
+			client._recv_handler = recv_handle(data => {
+				let pkt_type = data.readUInt8(1 + 3);
+				let ss_id = data.readUInt16LE(2 + 3);
 
-        client.on("error", (err) => {});
+				if(pkt_type == 11) {
+					clients[ss_id] = client;
+					client.on("close", (hadError) => {
+						if(hadError) {
+							console.log("connection closed unexcepted !");
+						}
+						clients[ss_id] = undefined;
+					});
+					//通道注册成功
+					client._authed = true;
+					on_tunnel_drain(ecbs);
+				}else if(pkt_type == 8) {
+					//结束连接回应
+					let finish_ok_packet = gen_packet(0, 9, 0, Buffer.alloc(0));
+					client.write(finish_ok_packet);
+					client._authed = false;
+				}else {
+					ecbs.emit("data", ss_id, data);
+				}
+			});
 
-        client._authed = false;
-        client._recv_handler = recv_handle(data => {
-            let pkt_type = data.readUInt8(1 + 3);
-            let ss_id = data.readUInt16LE(2 + 3);
-
-            if(pkt_type == 11) {
-                //通道注册成功
-                client._authed = true;
+			client.on("data", (data) => {
+				client._recv_handler(data);
+			}).on("drain", () => {
 				on_tunnel_drain(ecbs);
-            }else if(pkt_type == 8) {
-				//结束连接回应
-                let finish_ok_packet = gen_packet(0, 9, 0, Buffer.alloc(0));
-                client.write(finish_ok_packet);
-                client._authed = false;
-			}else {
-				ecbs.emit("data", ss_id, data);
-			}
-        });
+			}).on("end", () => {
+				if(client._authed == true) {
+					console.log("警告，受到旁路FIN包攻击，联系服务器断开连接");
+					let finish_ok_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
+					client.write(finish_ok_packet);
+					client._authed = false;
+					client.end();
+					client.destroy();
+				}else {
+					client.end();
+				}
+			}).on("error", (err) => {});
+		});
 
-        client.on("data", (data) => {
-            client._recv_handler(data);
-        }).on("close", (hadError) => {
-            if(hadError) {
-                console.log("connection closed unexcepted !");
-            }
-            clients[index] = undefined;
-        }).on("drain", () => {
-            on_tunnel_drain(ecbs);
-        }).on("end", () => {
-            if(client._authed == true) {
-                console.log("警告，受到旁路FIN包攻击，联系服务器断开连接");
-                let finish_ok_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
-                client.write(finish_ok_packet);
-                client._authed = false;
-                client.end();
-                client.destroy();
-            }else {
-                client.end();
-            }
-        });
+		client.on("error", (err) => {
+			//clients[index] = undefined;
+			console.log(err);
+		});
 
-    });
+		return client;
 
-    client.on("error", (err) => {
-        //console.log(err);
-        clients[index] = undefined;
-    });
-
-    return client;
+	});
 }
 
 function get_drain_client() {
