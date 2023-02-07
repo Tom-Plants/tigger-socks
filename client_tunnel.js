@@ -5,7 +5,7 @@ const { recv_handle, mix, gen_packet } = require("./packet_handler");
 const { log } = require("./util");
 
 let tunnel_nums = 8;
-let target_host = "jp1.0x7c00.site";
+let target_host = "127.0.0.1";
 let target_port = 443;
 
 /**
@@ -125,12 +125,13 @@ function on_tunnel_drain(ecbs) {
             pending_data.unshift(data);
             break;
         }
-        client.write(data, (err) => {
-            if(err) {
-                console.log("错误", data);
-                pending_data.unshift(data);
-            }
-        })
+		((d) => {
+			client.write(data, (err) => {
+				if(err) {
+					pending_data.unshift(d);
+				}
+			})
+		})(data);
     }
 
     if(get_drain_client() != undefined && !drain_emited) {
@@ -147,11 +148,13 @@ function push_data_to_remote(data) {
         return false;
     }
 
-    client.write(data, (err) => {
-        if(err) {
-            pending_data.unshift(data);
-        }
-    });
+	((d) => {
+		client.write(data, (err) => {
+			if(err) {
+				pending_data.unshift(d);
+			}
+		})
+	})(data);
 
 	return true;
 }
