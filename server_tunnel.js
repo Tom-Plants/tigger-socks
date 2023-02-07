@@ -25,12 +25,14 @@ function init_input_tunnels(ecbs) {
             let real_data = data.slice(4 + 3);
 
             if(pkt_type == 10) {
+				let id = add_client(socket);
                 //发送通道注册成功包
-                let register_packet = gen_packet(0, 11, ss_id, Buffer.alloc(0));
+                let register_packet = gen_packet(0, 11, id, Buffer.alloc(0));
                 socket.write(register_packet);
 
                 socket._authed = true;
                 on_tunnel_drain(ecbs);
+
 
 				//断开连接
                 setTimeout(() => {
@@ -52,7 +54,6 @@ function init_input_tunnels(ecbs) {
 			}
         });
 
-        let id = add_client(socket);
 
         socket.on("close", (hadError) => {
 			if(hadError) {
