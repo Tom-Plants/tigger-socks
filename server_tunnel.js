@@ -33,6 +33,13 @@ function init_input_tunnels(ecbs) {
                 socket._authed = true;
                 on_tunnel_drain(ecbs);
 
+				socket.on("close", (hadError) => {
+					if(hadError) {
+						console.log("tunnel closed unexpected !")
+					}
+					clients[id] = undefined;
+				})
+
 
 				//断开连接
                 setTimeout(() => {
@@ -55,13 +62,7 @@ function init_input_tunnels(ecbs) {
         });
 
 
-        socket.on("close", (hadError) => {
-			if(hadError) {
-				console.log("tunnel closed unexpected !")
-			}
-			clients[id] = undefined;
-        })
-        .on("data", (data) => {
+        socket.on("data", (data) => {
             recv_handler(data);
         })
         .on("error", (err) => {
