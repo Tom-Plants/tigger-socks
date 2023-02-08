@@ -50,7 +50,7 @@ function create_tunnel(index, ecbs) {
         client._authed = false;
         client._recv_handler = recv_handle(data => {
             let pkt_type = data.readUInt8(1 + 3);
-            let ss_id = data.slice(5, 5+32);
+            let ss_id = data.slice(5, 5+32).toString();
 
             if(pkt_type == 11) {
                 //通道注册成功

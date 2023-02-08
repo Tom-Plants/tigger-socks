@@ -21,7 +21,7 @@ function init_input_tunnels(ecbs) {
         let recv_handler = recv_handle(data => {
             let pkt_num = data.readUInt32LE(0);
             let pkt_type = data.readUInt8(1 + 3);
-            let ss_id = data.readUInt16LE(2 + 3);
+            let ss_id = data.readUInt16LE(5 + 32).toString();
             let real_data = data.slice(4 + 3);
 
             if(pkt_type == 10) {

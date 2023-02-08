@@ -122,7 +122,7 @@ server.listen(local_port, local_host, () => {
 		if(pk_handles[ss_id] == undefined) {
 			pk_handles[ss_id] = pk_handle((data) => {
 				let pkt_type = data.readUInt8(1 + 3);
-				let real_data = data.slice(4 + 3);
+				let real_data = data.slice(5+32);
 
 				if(pkt_type == 202) {
 					//创建会话成功
