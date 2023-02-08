@@ -1,7 +1,7 @@
 const {init_input_tunnels, push_data_to_remote} = require("./server_tunnel");
 const {EventEmitter} = require("events");
 const {createConnection} = require("net");
-const {gen_packet, st_handle, pk_handle} = require("./packet_handler");
+const {gen_packet, st_handle, pk_handle, get_packet} = require("./packet_handler");
 
 const target_addr = "127.0.0.1";
 const target_port = 3000;
@@ -14,8 +14,8 @@ init_input_tunnels(e);
 e.on("data", (ss_id, data) => {
 	if(pk_handles[ss_id] == undefined) {
 		pk_handles[ss_id] = pk_handle((data) => {
-            let pkt_type = data.readUInt8(1 + 3);
-            let real_data = data.slice(5+32);
+			let {type, real_data} = get_packet(data);
+			let pkt_type = type;
 
 			if(pkt_type == 101) {
 				//创建会话
@@ -53,8 +53,8 @@ e.on("data", (ss_id, data) => {
 			}
 		}, ss_id);
 	}
-	let pkt_num = data.readUInt32LE(0);
-	pk_handles[ss_id](pkt_num, data);
+	let {pn} = get_packet(data);
+	pk_handles[ss_id](pn, data);
 });
 
 function create_outbound(host, port, ss_id) {

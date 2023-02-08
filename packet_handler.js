@@ -87,6 +87,14 @@ function gen_packet(packet_number, type, ss_id, data) {
     return Buffer.concat([len_buf, g_data]);
 }
 
+function get_packet(packet) {
+	let pn = packet.readUInt32LE(0);
+	let type = packet.readUInt8(4);
+	let ss_id = packet.slice(5, 5+32).toString();
+	let real_data = packet.slice(5+32);
+	return {pn, type, ss_id, real_data};
+}
+
 /**
  * 每一条线都需要一个粘包处理器
  * @param {*} callback 
@@ -139,5 +147,6 @@ module.exports = {
     pk_handle,
     st_handle,
     mix,
-    gen_packet
+    gen_packet,
+	get_packet
 }

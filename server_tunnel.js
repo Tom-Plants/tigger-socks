@@ -2,7 +2,7 @@ const { randomInt } = require("crypto");
 const { readFileSync } = require("fs");
 const { createServer } = require("tls");
 const { log } = require("./util");
-const { recv_handle, gen_packet } = require("./packet_handler");
+const { recv_handle, gen_packet, get_packet } = require("./packet_handler");
 
 let port = 443;
 let host = "0.0.0.0";
@@ -19,10 +19,8 @@ function init_input_tunnels(ecbs) {
     }).listen(port, host).on("secureConnection", (socket) => {
         log(`T`, socket.remoteAddress, socket.remotePort, 0, "connected");
         let recv_handler = recv_handle(data => {
-            let pkt_num = data.readUInt32LE(0);
-            let pkt_type = data.readUInt8(1 + 3);
-            let ss_id = data.readUInt16LE(5 + 32).toString();
-            let real_data = data.slice(4 + 3);
+			let {ss_id, type} = get_packet(data);
+            let pkt_type = type;
 
             if(pkt_type == 10) {
                 //发送通道注册成功包

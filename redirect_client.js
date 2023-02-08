@@ -1,6 +1,6 @@
 const socks = require("socksv5");
 const md5 = require("md5");
-const {gen_packet, pk_handle, st_handle, recv_handle} = require("./packet_handler");
+const {gen_packet, pk_handle, st_handle, recv_handle, get_packet} = require("./packet_handler");
 const {createConnection, createServer} = require("net");
 const EventEmitter = require("events");
 const {push_data_to_remote, init_tunnels} = require("./client_tunnel");
@@ -121,8 +121,8 @@ server.listen(local_port, local_host, () => {
 	tunnel.on("data", (ss_id, data) => {
 		if(pk_handles[ss_id] == undefined) {
 			pk_handles[ss_id] = pk_handle((data) => {
-				let pkt_type = data.readUInt8(1 + 3);
-				let real_data = data.slice(5+32);
+				let {type, real_data} = get_packet(data);
+				let pkt_type = type;
 
 				if(pkt_type == 202) {
 					//创建会话成功
@@ -153,8 +153,8 @@ server.listen(local_port, local_host, () => {
 				}
 			}, ss_id);
 		}
-		let pkt_num = data.readUInt32LE(0);
-		pk_handles[ss_id](pkt_num, data);
+		let {pn} = get_packet(data);
+		pk_handles[ss_id](pn, data);
 	});
 });
 

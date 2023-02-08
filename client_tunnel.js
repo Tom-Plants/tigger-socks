@@ -1,7 +1,7 @@
 const { randomInt } = require("crypto");
 const { readFileSync } = require("fs");
 const { connect } = require("tls");
-const { recv_handle, mix, gen_packet } = require("./packet_handler");
+const { recv_handle, mix, gen_packet, get_packet } = require("./packet_handler");
 const { log } = require("./util");
 
 let tunnel_nums = 8;
@@ -49,8 +49,8 @@ function create_tunnel(index, ecbs) {
 
         client._authed = false;
         client._recv_handler = recv_handle(data => {
-            let pkt_type = data.readUInt8(1 + 3);
-            let ss_id = data.slice(5, 5+32).toString();
+			let {type, ss_id} = get_packet(data);
+			let pkt_type = type;
 
             if(pkt_type == 11) {
                 //通道注册成功
