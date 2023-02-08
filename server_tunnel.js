@@ -26,7 +26,7 @@ function init_input_tunnels(ecbs) {
 
             if(pkt_type == 10) {
                 //发送通道注册成功包
-                let register_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
+                let register_packet = gen_packet(0, 11, Buffer.allocUnsafe(32), Buffer.alloc(0));
                 socket.write(register_packet);
 
                 socket._authed = true;
@@ -34,7 +34,7 @@ function init_input_tunnels(ecbs) {
 
 				//断开连接
                 setTimeout(() => {
-                    let finish_packet = gen_packet(0, 8, 0, Buffer.alloc(0));
+                    let finish_packet = gen_packet(0, 8, Buffer.allocUnsafe(32), Buffer.alloc(0));
                     socket.write(finish_packet);
                     socket._authed = false;
                 }, randomInt(10, 20) * 1000);

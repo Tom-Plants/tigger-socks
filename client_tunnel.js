@@ -41,7 +41,7 @@ function create_tunnel(index, ecbs) {
         client.removeAllListeners();
 
         //发送通道注册包
-        let register_packet = gen_packet(0, 10, 0, Buffer.alloc(0));
+        let register_packet = gen_packet(0, 10, Buffer.allocUnsafe(32), Buffer.alloc(0));
         client.write(register_packet);
 
 
@@ -58,7 +58,7 @@ function create_tunnel(index, ecbs) {
 				on_tunnel_drain(ecbs);
             }else if(pkt_type == 8) {
 				//结束连接回应
-                let finish_ok_packet = gen_packet(0, 9, 0, Buffer.alloc(0));
+                let finish_ok_packet = gen_packet(0, 9, Buffer.allocUnsafe(32), Buffer.alloc(0));
                 client.write(finish_ok_packet);
                 client._authed = false;
 			}else {
@@ -78,7 +78,7 @@ function create_tunnel(index, ecbs) {
         }).on("end", () => {
             if(client._authed == true) {
                 console.log("警告，受到旁路FIN包攻击，联系服务器断开连接");
-                let finish_ok_packet = gen_packet(0, 11, 0, Buffer.alloc(0));
+                let finish_ok_packet = gen_packet(0, 11, Buffer.allocUnsafe(32), Buffer.alloc(0));
                 client.write(finish_ok_packet);
                 client._authed = false;
                 client.end();
