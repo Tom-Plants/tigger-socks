@@ -5,25 +5,41 @@ const {createConnection, createServer} = require("net");
 const EventEmitter = require("events");
 const {push_data_to_remote, init_tunnels} = require("./client_tunnel");
 const {Stream} = require("stream");
+const {writeFileSync, createWriteStream} = require("fs");
 
 const local_host = "0.0.0.0";
-const local_port = 3000;
+const local_port = 1080;
 
 let g_sessions = {};
 let pk_handles = {};
 let tunnel = new EventEmitter;
 let mapper = {};
 
+setInterval(() => {
+	console.log("-----------start-----------");
+	for(let i in mapper) {
+		let s = mapper[i];
+		console.log(i, s?.bytesRead, s?.bytesWritten);
+	}
+	console.log("------huan");
+	for(let i in g_sessions) {
+		let s = g_sessions[i];
+		console.log(i, s==undefined? false: true);
+	}
+	console.log("-----------st op-----------");
+}, 500);
+
 let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive: true}, (c) => {
-	start_proxy((tcp, ss_id) => {
+	let m_id = md5(c.remoteAddress+c.remotePort);
+	start_proxy((tcp) => {
 		tcp.on("_connect", () => {
 			tcp.removeAllListeners();
 
+
 			c.resume();
 			//本地socks5操作
-			mapper[c.remoteAddress+c.remotePort] = c;
+			mapper[m_id] = c;
 			
-
 			c.on("data", (data) => {
 				if(!tcp.write(data)) {
 					//所有暂停
@@ -34,18 +50,20 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 					}
 				}
 			});
+
 			c.on("end", () => {
 				tcp.end();
 			});
 			c.on("error", () => {})
 			c.on("close", (had_error) => {
 				if(had_error) {
-					console.log(`session:`, ss_id, "closed unexcpectlly !");
+					console.log(`session:`, m_id, "closed unexcpectlly !");
 					tcp.destroy();
 				}
 				tcp.clean();
-				mapper[c.remoteAddress+c.remotePort]?.resume();
-				mapper[c.remoteAddress+c.remotePort] = undefined;
+				mapper[m_id]?.resume();
+				mapper[m_id] = undefined;
+				delete mapper[m_id];
 			});
 			c.on("drain", () => {
 				tcp.resume();
@@ -59,11 +77,13 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 			});
 			tcp.on("_close", (had_error) => {
 				if(had_error) {
-					console.log(`session from remote:`, ss_id, "closed unexcpectlly !");
+					console.log(`session from remote:`, m_id, "closed unexcpectlly !");
 				}
-				mapper[c.remoteAddress+c.remotePort]?.resume();
+				mapper[m_id]?.resume();
+				mapper[m_id] = undefined;
 				if(!c.destroyed) c.destroy();
-				mapper[c.remoteAddress+c.remotePort] = undefined;
+				tcp.clean();
+				delete mapper[m_id];
 			});
 			tcp.on("_end", () => {
 				c.end();
@@ -80,9 +100,9 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 			if(had_error) {
 				console.log("session", ss_id, " connect failed");
 			}
-			deny();
+			c.destroy();
 		});
-	});
+	}, m_id);
 	
 });
 
@@ -167,17 +187,11 @@ function gen_remote_socket(ss_id) {
 	a.st = st;
 	return a;
 }
-function start_proxy(callback) {
-	let server_ss = Object.keys(g_sessions).length;
-	for(let i in g_sessions) {
-		if(g_sessions[i] == undefined) {
-			server_ss = i;
-		}
-	}
-	let socket = g_sessions[server_ss] = gen_remote_socket(server_ss);
-	console.log(`client redirect session:`, server_ss);
+function start_proxy(callback, m_id) {
+	let socket = g_sessions[m_id] = gen_remote_socket(m_id);
+	console.log(`client redirect session:`, m_id);
 	socket.connect();
-	callback(socket, server_ss);
+	callback(socket);
 }
 
 process.stdin.pipe(
@@ -185,7 +199,7 @@ process.stdin.pipe(
 		{
 			write: (chunk, encoding, callback) => {
 				let cmd = chunk.toString();
-				if(cmd == "check\r\n") {
+				if(cmd == "check\n") {
 					for(let i in g_sessions) {
 						if(g_sessions[i] != undefined) {
 							console.log(i, g_sessions[i]);

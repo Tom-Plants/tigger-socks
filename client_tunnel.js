@@ -5,7 +5,7 @@ const { recv_handle, mix, gen_packet } = require("./packet_handler");
 const { log } = require("./util");
 
 let tunnel_nums = 8;
-let target_host = "127.0.0.1";
+let target_host = "jp1.0x7c00.site";
 let target_port = 443;
 
 /**
@@ -50,7 +50,7 @@ function create_tunnel(index, ecbs) {
         client._authed = false;
         client._recv_handler = recv_handle(data => {
             let pkt_type = data.readUInt8(1 + 3);
-            let ss_id = data.readUInt16LE(2 + 3);
+            let ss_id = data.slice(5, 5+32);
 
             if(pkt_type == 11) {
                 //通道注册成功

@@ -74,11 +74,11 @@ function gen_packet(packet_number, type, ss_id, data) {
     let len_buf = Buffer.allocUnsafe(4);
     let pn_buf = Buffer.allocUnsafe(4);
     let type_buf = Buffer.allocUnsafe(1);
-    let ss_id_buf = Buffer.allocUnsafe(2);
+    let ss_id_buf = Buffer.allocUnsafe(32);
 
     pn_buf.writeUInt32LE(packet_number);
     type_buf.writeUInt8(type);
-    ss_id_buf.writeUInt16LE(ss_id);
+    ss_id_buf.write(ss_id);
 
     let g_data = Buffer.concat([pn_buf, type_buf, ss_id_buf, data]);
 
