@@ -1,4 +1,4 @@
-const {init_input_tunnels, push_data_to_remote} = require("./server_tunnel");
+const {init_tunnels, push_data_to_remote} = require("./client_tunnel");
 const {EventEmitter} = require("events");
 const {createConnection} = require("net");
 const {gen_packet, st_handle, pk_handle, get_packet} = require("./packet_handler");
@@ -9,7 +9,7 @@ const target_port = 3000;
 let e = new EventEmitter;
 let pk_handles = {};
 let clients = {};
-init_input_tunnels(e);
+init_tunnels(e);
 
 e.on("data", (ss_id, data) => {
 	if(pk_handles[ss_id] == undefined) {

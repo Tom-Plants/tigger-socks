@@ -3,7 +3,8 @@ const md5 = require("md5");
 const {gen_packet, pk_handle, st_handle, recv_handle, get_packet} = require("./packet_handler");
 const {createConnection, createServer} = require("net");
 const EventEmitter = require("events");
-const {push_data_to_remote, init_tunnels} = require("./client_tunnel");
+//const {push_data_to_remote, init_tunnels} = require("./client_tunnel");
+const {push_data_to_remote, init_input_tunnels} = require("./server_tunnel");
 const {Stream} = require("stream");
 const {writeFileSync, createWriteStream} = require("fs");
 
@@ -14,20 +15,6 @@ let g_sessions = {};
 let pk_handles = {};
 let tunnel = new EventEmitter;
 let mapper = {};
-
-setInterval(() => {
-	console.log("-----------start-----------");
-	for(let i in mapper) {
-		let s = mapper[i];
-		console.log(i, s?.bytesRead, s?.bytesWritten);
-	}
-	console.log("------huan");
-	for(let i in g_sessions) {
-		let s = g_sessions[i];
-		console.log(i, s==undefined? false: true);
-	}
-	console.log("-----------st op-----------");
-}, 500);
 
 let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive: true}, (c) => {
 	let m_id = md5(c.remoteAddress+c.remotePort);
@@ -108,7 +95,7 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 
 server.listen(local_port, local_host, () => {
 	console.log("server started");
-	init_tunnels(tunnel);
+	init_input_tunnels(tunnel);
 
 	tunnel.on("drain", () => {
 		for(let i in mapper) {
