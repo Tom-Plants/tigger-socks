@@ -8,7 +8,7 @@ const {Stream} = require("stream");
 const {writeFileSync, createWriteStream} = require("fs");
 
 const local_host = "0.0.0.0";
-const local_port = 1080;
+const local_port = 27015;
 
 let g_sessions = {};
 let pk_handles = {};
@@ -34,7 +34,6 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 	start_proxy((tcp) => {
 		tcp.on("_connect", () => {
 			tcp.removeAllListeners();
-
 
 			c.resume();
 			//本地socks5操作
@@ -97,9 +96,6 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 		});
 
 		tcp.on("_close", (had_error) => {
-			if(had_error) {
-				console.log("session", ss_id, " connect failed");
-			}
 			c.destroy();
 		});
 	}, m_id);
@@ -127,10 +123,10 @@ server.listen(local_port, local_host, () => {
 				if(pkt_type == 202) {
 					//创建会话成功
 					console.log(`session:`, ss_id, "connected");
-					g_sessions[ss_id].emit("_connect");
+					g_sessions[ss_id]?.emit("_connect");
 				}else if(pkt_type == 201) {
 					//创建会话失败
-					g_sessions[ss_id].emit("_close", true);
+					g_sessions[ss_id]?.emit("_close", true);
 					g_sessions[ss_id] = undefined;
 					pk_handles[ss_id] = undefined;
 				}else if(pkt_type == 3) {
@@ -138,6 +134,7 @@ server.listen(local_port, local_host, () => {
 					g_sessions[ss_id]?.emit("_data", real_data);
 				}else if(pkt_type == 203) {
 					//远程会话关闭
+					console.log("session", ss_id, " connect failed");
 					g_sessions[ss_id]?.emit("_close", true);
 					g_sessions[ss_id] = undefined;
 					pk_handles[ss_id] = undefined;
