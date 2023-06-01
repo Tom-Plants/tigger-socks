@@ -96,7 +96,7 @@ let server = createServer({allowHalfOpen: true, pauseOnConnect: true, keepAlive:
 		});
 
 		tcp.on("_close", (had_error) => {
-			c.destroy();
+			if(!c.destroyed) c.destroy();
 		});
 	}, m_id);
 	
