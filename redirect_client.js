@@ -16,6 +16,7 @@ let tunnel = new EventEmitter;
 let mapper = {};
 
 setInterval(() => {
+  console.clear();
 	console.log("-----------start-----------");
 	for(let i in mapper) {
 		let s = mapper[i];
@@ -25,6 +26,9 @@ setInterval(() => {
 	for(let i in g_sessions) {
 		let s = g_sessions[i];
 		console.log(i, s==undefined? false: true);
+    if(s == undefined) {
+      delete g_sessions[i];
+    }
 	}
 	console.log("-----------st op-----------");
 }, 500);
