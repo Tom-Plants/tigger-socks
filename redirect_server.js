@@ -3,8 +3,8 @@ const {EventEmitter} = require("events");
 const {createConnection} = require("net");
 const {gen_packet, st_handle, pk_handle, get_packet} = require("./packet_handler");
 
-const target_addr = "127.0.0.1";
-const target_port = 3000;
+const target_addr = "192.168.0.2";
+const target_port = 8080;
 
 let e = new EventEmitter;
 let pk_handles = {};
